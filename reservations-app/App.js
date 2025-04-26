@@ -1,20 +1,30 @@
-import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import 'react-native-gesture-handler';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import AppNavigator from './src/navigation/AppNavigator';
+import {
+  ensureAuthenticated,
+  checkAndMoveExpiredReservations,
+} from './src/services/firebase';
 
 export default function App() {
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await ensureAuthenticated();
+        await checkAndMoveExpiredReservations();
+      } catch (error) {
+        console.error('Erro ao inicializar app:', error);
+      }
+    };
+    initializeApp();
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text>Iniciando Projeto</Text>
+    <NavigationContainer>
+      <AppNavigator />
       <StatusBar style="auto" />
-    </View>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
