@@ -1,38 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   Button,
   StyleSheet,
+  Alert,
   ScrollView,
 } from 'react-native';
+import { isValid, parse, format, parseISO } from 'date-fns';
 import { COLORS } from '../constants/colors';
 
 export default function ReservationFormModal({
   selectedDate,
-  reservation,
   onSave,
   onClose,
 }) {
   const [clientName, setClientName] = useState('');
-  const [startDate, setStartDate] = useState(selectedDate || '');
-  const [endDate, setEndDate] = useState(selectedDate || '');
+  const [startDate, setStartDate] = useState(
+    selectedDate ? format(parseISO(selectedDate), 'dd-MM-yyyy') : ''
+  );
+  const [endDate, setEndDate] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [remainingAmount, setRemainingAmount] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Preencher campos se for edição
-  useEffect(() => {
-    if (reservation) {
-      setClientName(reservation.clientName || '');
-      setStartDate(reservation.startDate || '');
-      setEndDate(reservation.endDate || '');
-      setPaidAmount(reservation.paidAmount?.toString() || '');
-      setRemainingAmount(reservation.remainingAmount?.toString() || '');
-      setNotes(reservation.notes || '');
-    }
-  }, [reservation]);
+  const validateDate = (dateStr) => {
+    const parsed = parse(dateStr, 'dd-MM-yyyy', new Date());
+    return isValid(parsed) && dateStr.match(/^\d{2}-\d{2}-\d{4}$/);
+  };
 
   const handleSave = () => {
     if (
@@ -42,48 +38,84 @@ export default function ReservationFormModal({
       !paidAmount ||
       !remainingAmount
     ) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
-    const updatedReservation = {
+    if (!validateDate(startDate)) {
+      Alert.alert(
+        'Erro',
+        'Data inicial inválida. Use o formato DD-MM-AAAA (ex.: 28-04-2025).'
+      );
+      return;
+    }
+
+    if (!validateDate(endDate)) {
+      Alert.alert(
+        'Erro',
+        'Data final inválida. Use o formato DD-MM-AAAA (ex.: 01-05-2025).'
+      );
+      return;
+    }
+
+    const start = parse(startDate, 'dd-MM-yyyy', new Date());
+    const end = parse(endDate, 'dd-MM-yyyy', new Date());
+
+    if (end < start) {
+      Alert.alert(
+        'Erro',
+        'A data final deve ser igual ou posterior à data inicial.'
+      );
+      return;
+    }
+
+    if (isNaN(parseFloat(paidAmount)) || isNaN(parseFloat(remainingAmount))) {
+      Alert.alert(
+        'Erro',
+        'Os valores pago e restante devem ser números válidos.'
+      );
+      return;
+    }
+
+    const reservation = {
       clientName,
-      startDate,
-      endDate,
+      startDate: format(start, 'yyyy-MM-dd'),
+      endDate: format(end, 'yyyy-MM-dd'),
       paidAmount: parseFloat(paidAmount),
       remainingAmount: parseFloat(remainingAmount),
       notes,
     };
 
-    onSave(updatedReservation);
+    onSave(reservation);
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>
-          {reservation ? 'Editar Reserva' : 'Nova Reserva'}
-        </Text>
+    <View style={styles.modalContainer}>
+      <ScrollView contentContainerStyle={styles.modalContent}>
+        <Text style={styles.modalTitle}>Nova Reserva</Text>
         <Text style={styles.label}>Nome do Cliente</Text>
         <TextInput
           style={styles.input}
           value={clientName}
           onChangeText={setClientName}
           placeholder="Digite o nome"
+          placeholderTextColor={COLORS.closed}
         />
-        <Text style={styles.label}>Data Inicial</Text>
+        <Text style={styles.label}>Data Inicial (DD-MM-AAAA)</Text>
         <TextInput
           style={styles.input}
           value={startDate}
           onChangeText={setStartDate}
-          placeholder="YYYY-MM-DD"
+          placeholder="Ex.: 28-04-2025"
+          placeholderTextColor={COLORS.closed}
         />
-        <Text style={styles.label}>Data Final</Text>
+        <Text style={styles.label}>Data Final (DD-MM-AAAA)</Text>
         <TextInput
           style={styles.input}
           value={endDate}
           onChangeText={setEndDate}
-          placeholder="YYYY-MM-DD"
+          placeholder="Ex.: 01-05-2025"
+          placeholderTextColor={COLORS.closed}
         />
         <Text style={styles.label}>Valor Pago</Text>
         <TextInput
@@ -92,6 +124,7 @@ export default function ReservationFormModal({
           onChangeText={setPaidAmount}
           keyboardType="numeric"
           placeholder="Digite o valor"
+          placeholderTextColor={COLORS.closed}
         />
         <Text style={styles.label}>Valor Restante</Text>
         <TextInput
@@ -100,6 +133,7 @@ export default function ReservationFormModal({
           onChangeText={setRemainingAmount}
           keyboardType="numeric"
           placeholder="Digite o valor"
+          placeholderTextColor={COLORS.closed}
         />
         <Text style={styles.label}>Observação</Text>
         <TextInput
@@ -107,6 +141,7 @@ export default function ReservationFormModal({
           value={notes}
           onChangeText={setNotes}
           placeholder="Opcional"
+          placeholderTextColor={COLORS.closed}
           multiline
         />
         <View style={styles.buttonContainer}>
@@ -119,35 +154,41 @@ export default function ReservationFormModal({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: COLORS.available,
+  modalContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: 15,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  modalContent: {
     padding: 20,
-    borderRadius: 10,
-    maxHeight: '80%',
   },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 20,
+  modalTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 10,
+    color: COLORS.primary,
+    marginBottom: 15,
+    textAlign: 'center',
   },
   label: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: COLORS.text,
     marginTop: 10,
+    marginBottom: 5,
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.text,
-    borderRadius: 5,
-    padding: 10,
-    marginTop: 5,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
     color: COLORS.text,
+    backgroundColor: COLORS.available,
   },
   buttonContainer: {
     flexDirection: 'row',

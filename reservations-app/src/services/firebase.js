@@ -103,7 +103,7 @@ async function createReservation(reservation) {
   };
 
   await set(newReservationRef, newReservation);
-  console.log(`Nova reserva criada: ${reservationId}`);
+  `Nova reserva criada: ${reservationId}`;
   return newReservation;
 }
 
@@ -126,7 +126,7 @@ async function updateReservation(reservationId, updates) {
   await ensureAuthenticated();
   const reservationRef = ref(database, `reservations/${reservationId}`);
   await update(reservationRef, updates);
-  console.log(`Reserva atualizada: ${reservationId}`);
+  `Reserva atualizada: ${reservationId}`;
 }
 
 // Remover uma reserva
@@ -134,7 +134,7 @@ async function deleteReservation(reservationKey) {
   await ensureAuthenticated();
   const reservationRef = ref(database, `reservations/${reservationKey}`);
   await remove(reservationRef);
-  console.log(`Reserva removida de reservations: ${reservationKey}`);
+  `Reserva removida de reservations: ${reservationKey}`;
 }
 
 // Mover reserva para o histórico
@@ -143,21 +143,17 @@ async function moveToHistory(reservation, reservationKey) {
   const historyRef = ref(database, `history/${reservation.id}`);
   const historySnapshot = await get(historyRef);
 
-  console.log(
-    `Tentando mover reserva ${reservation.id} (key: ${reservationKey}) para histórico`
-  );
+  `Tentando mover reserva ${reservation.id} (key: ${reservationKey}) para histórico`;
 
   // Verificar se a reserva já existe no histórico
   if (historySnapshot.exists()) {
-    console.log(
-      `Reserva ${reservation.id} já existe no histórico, pulando movimentação`
-    );
+    `Reserva ${reservation.id} já existe no histórico, pulando movimentação`;
     return;
   }
 
   // Salvar no histórico
   await set(historyRef, reservation);
-  console.log(`Reserva ${reservation.id} movida para histórico`);
+  `Reserva ${reservation.id} movida para histórico`;
 
   // Remover da reservations
   await deleteReservation(reservationKey);
@@ -182,7 +178,7 @@ async function addClosedDate(date, reason) {
   await ensureAuthenticated();
   const closedDateRef = ref(database, `closedDates/${date}`);
   await set(closedDateRef, { reason });
-  console.log(`Dia fechado adicionado: ${date}`);
+  `Dia fechado adicionado: ${date}`;
 }
 
 // Listar dias fechados
@@ -211,34 +207,28 @@ async function checkAndMoveExpiredReservations() {
     : [];
   const today = startOfDay(new Date());
 
-  console.log(`Verificando reservas expiradas em ${today.toISOString()}`);
+  `Verificando reservas expiradas em ${today.toISOString()}`;
 
   if (snapshot.exists()) {
     const reservations = snapshot.val();
     for (const key in reservations) {
       const reservation = reservations[key];
-      console.log(
-        `Analisando reserva ${reservation.id} (key: ${key}), endDate: ${reservation.endDate}`
-      );
+      `Analisando reserva ${reservation.id} (key: ${key}), endDate: ${reservation.endDate}`;
 
       if (!historyIds.includes(reservation.id)) {
         const endDate = parseISO(reservation.endDate);
         if (isBefore(endDate, today)) {
-          console.log(
-            `Reserva ${reservation.id} expirada, movendo para histórico`
-          );
+          `Reserva ${reservation.id} expirada, movendo para histórico`;
           await moveToHistory(reservation, key);
         } else {
-          console.log(
-            `Reserva ${reservation.id} não expirada, mantendo em reservations`
-          );
+          `Reserva ${reservation.id} não expirada, mantendo em reservations`;
         }
       } else {
-        console.log(`Reserva ${reservation.id} já está no histórico, pulando`);
+        `Reserva ${reservation.id} já está no histórico, pulando`;
       }
     }
   } else {
-    console.log('Nenhuma reserva encontrada em reservations');
+    ('Nenhuma reserva encontrada em reservations');
   }
 }
 
@@ -247,7 +237,7 @@ async function deleteHistoryReservation(reservationId) {
   await ensureAuthenticated();
   const historyRef = ref(database, `history/${reservationId}`);
   await remove(historyRef);
-  console.log(`Reserva removida do histórico: ${reservationId}`);
+  `Reserva removida do histórico: ${reservationId}`;
 }
 
 export {

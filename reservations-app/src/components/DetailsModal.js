@@ -1,63 +1,80 @@
-import { View, Text, Button, StyleSheet } from 'react-native';
+import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
 import { COLORS } from '../constants/colors';
 
 export default function DetailsModal({ details, onClose }) {
   if (!details) return null;
 
-  const isOccupied = details.reservation;
-  const title = isOccupied ? 'Reserva' : 'Dia Fechado';
-  const content = isOccupied ? (
-    <>
-      <Text style={styles.label}>Cliente:</Text>
-      <Text style={styles.text}>{details.reservation.clientName}</Text>
-      <Text style={styles.label}>Datas:</Text>
-      <Text style={styles.text}>
-        {details.reservation.startDate} a {details.reservation.endDate}
-      </Text>
-      <Text style={styles.label}>Valor Pago:</Text>
-      <Text style={styles.text}>R$ {details.reservation.paidAmount}</Text>
-      <Text style={styles.label}>Valor Restante:</Text>
-      <Text style={styles.text}>R$ {details.reservation.remainingAmount}</Text>
-      <Text style={styles.label}>Observação:</Text>
-      <Text style={styles.text}>{details.reservation.notes || 'Nenhuma'}</Text>
-    </>
-  ) : (
-    <>
-      <Text style={styles.label}>Motivo:</Text>
-      <Text style={styles.text}>{details.reason}</Text>
-    </>
-  );
+  const { reservation, reason } = details;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      {content}
-      <Button title="Fechar" onPress={onClose} color={COLORS.primary} />
+    <View style={styles.modalContainer}>
+      <ScrollView contentContainerStyle={styles.modalContent}>
+        <Text style={styles.modalTitle}>
+          {reservation ? 'Detalhes da Reserva' : 'Dia Fechado'}
+        </Text>
+        {reservation ? (
+          <>
+            <Text style={styles.label}>Cliente:</Text>
+            <Text style={styles.value}>{reservation.clientName}</Text>
+            <Text style={styles.label}>Período:</Text>
+            <Text style={styles.value}>
+              {reservation.startDate} a {reservation.endDate}
+            </Text>
+            <Text style={styles.label}>Valor Pago:</Text>
+            <Text style={styles.value}>R$ {reservation.paidAmount}</Text>
+            <Text style={styles.label}>Valor Restante:</Text>
+            <Text style={styles.value}>R$ {reservation.remainingAmount}</Text>
+            <Text style={styles.label}>Observação:</Text>
+            <Text style={styles.value}>{reservation.notes || 'Nenhuma'}</Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Motivo:</Text>
+            <Text style={styles.value}>{reason}</Text>
+          </>
+        )}
+        <View style={styles.buttonContainer}>
+          <Button title="Fechar" onPress={onClose} color={COLORS.primary} />
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: COLORS.available,
-    padding: 20,
-    borderRadius: 10,
-    maxHeight: '80%',
+  modalContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: 15,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
   },
-  title: {
-    fontSize: 20,
+  modalContent: {
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 10,
+    color: COLORS.primary,
+    marginBottom: 15,
+    textAlign: 'center',
   },
   label: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: COLORS.text,
     marginTop: 10,
   },
-  text: {
+  value: {
     fontSize: 16,
     color: COLORS.text,
+    marginBottom: 5,
+  },
+  buttonContainer: {
+    marginTop: 20,
+    alignItems: 'center',
   },
 });

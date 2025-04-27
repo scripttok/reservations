@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, Button } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Alert,
+  Button,
+  ActivityIndicator,
+} from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import Modal from 'react-native-modal';
 import { format, parseISO, eachDayOfInterval } from 'date-fns';
-import { LocaleConfig } from 'react-native-calendars';
 import {
   getReservations,
   getClosedDates,
@@ -22,11 +27,13 @@ export default function CreateReservationScreen() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showClosedDateModal, setShowClosedDateModal] = useState(false);
   const [reservationDetails, setReservationDetails] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Carregar dados do Firebase
   useEffect(() => {
     const loadData = async () => {
       try {
+        setIsLoading(true);
         const reservations = await getReservations();
         const closedDates = await getClosedDates();
         const marked = {};
@@ -59,56 +66,14 @@ export default function CreateReservationScreen() {
         setMarkedDates(marked);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
+        Alert.alert('Erro', 'Falha ao carregar dados. Tente novamente.');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadData();
   }, []);
-
-  LocaleConfig.locales['pt-BR'] = {
-    monthNames: [
-      'Janeiro',
-      'Fevereiro',
-      'Março',
-      'Abril',
-      'Maio',
-      'Junho',
-      'Julho',
-      'Agosto',
-      'Setembro',
-      'Outubro',
-      'Novembro',
-      'Dezembro',
-    ],
-    monthNamesShort: [
-      'Jan',
-      'Fev',
-      'Mar',
-      'Abr',
-      'Mai',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Set',
-      'Out',
-      'Nov',
-      'Dez',
-    ],
-    dayNames: [
-      'Domingo',
-      'Segunda-feira',
-      'Terça-feira',
-      'Quarta-feira',
-      'Quinta-feira',
-      'Sexta-feira',
-      'Sábado',
-    ],
-    dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
-    today: 'Hoje',
-  };
-
-  // Definir o locale padrão
-  LocaleConfig.defaultLocale = 'pt-BR';
 
   // Manipular clique no dia
   const handleDayPress = (day) => {
@@ -128,6 +93,7 @@ export default function CreateReservationScreen() {
   // Salvar nova reserva
   const handleSaveReservation = async (reservation) => {
     try {
+      setIsLoading(true);
       await createReservation(reservation);
       Alert.alert('Sucesso', 'Reserva criada com sucesso!');
       setShowFormModal(false);
@@ -150,12 +116,15 @@ export default function CreateReservationScreen() {
       setMarkedDates(newMarked);
     } catch (error) {
       Alert.alert('Erro', error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Salvar dia fechado
   const handleSaveClosedDate = async (date, reason) => {
     try {
+      setIsLoading(true);
       await addClosedDate(date, reason);
       Alert.alert('Sucesso', 'Dia fechado adicionado!');
       setShowClosedDateModal(false);
@@ -172,11 +141,18 @@ export default function CreateReservationScreen() {
       setMarkedDates(newMarked);
     } catch (error) {
       Alert.alert('Erro', error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      )}
       <Button
         title="Adicionar Dia Fechado"
         onPress={() => setShowClosedDateModal(true)}
@@ -191,16 +167,22 @@ export default function CreateReservationScreen() {
           calendarBackground: COLORS.available,
           textSectionTitleColor: COLORS.text,
           selectedDayBackgroundColor: COLORS.primary,
-          selectedDayTextColor: '#ffffff',
+          selectedDayTextColor: COLORS.text,
           todayTextColor: COLORS.primary,
           dayTextColor: COLORS.text,
-          textDisabledColor: '#d9e1e8',
+          textDisabledColor: COLORS.available,
           arrowColor: COLORS.primary,
+          monthTextColor: COLORS.primary,
+          textDayFontWeight: '400',
+          textMonthFontWeight: 'bold',
+          textDayHeaderFontWeight: '600',
         }}
       />
       <Modal
         isVisible={showDetailsModal}
         onBackdropPress={() => setShowDetailsModal(false)}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
       >
         <DetailsModal
           details={reservationDetails}
@@ -210,6 +192,8 @@ export default function CreateReservationScreen() {
       <Modal
         isVisible={showFormModal}
         onBackdropPress={() => setShowFormModal(false)}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
       >
         <ReservationFormModal
           selectedDate={selectedDate}
@@ -220,6 +204,8 @@ export default function CreateReservationScreen() {
       <Modal
         isVisible={showClosedDateModal}
         onBackdropPress={() => setShowClosedDateModal(false)}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
       >
         <ClosedDateModal
           onSave={handleSaveClosedDate}
@@ -234,5 +220,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+    padding: 20,
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
 });

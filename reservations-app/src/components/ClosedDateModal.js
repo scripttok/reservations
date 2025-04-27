@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { COLORS } from '../constants/colors';
 
 export default function ClosedDateModal({ onSave, onClose }) {
@@ -11,63 +18,75 @@ export default function ClosedDateModal({ onSave, onClose }) {
       alert('Por favor, preencha a data e o motivo.');
       return;
     }
-
     onSave(date, reason);
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Adicionar Dia Fechado</Text>
-      <Text style={styles.label}>Data (YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        value={date}
-        onChangeText={setDate}
-        placeholder="Ex: 2025-05-10"
-      />
-      <Text style={styles.label}>Motivo</Text>
-      <TextInput
-        style={styles.input}
-        value={reason}
-        onChangeText={setReason}
-        placeholder="Digite o motivo"
-        multiline
-      />
-      <View style={styles.buttonContainer}>
-        <Button title="Salvar" onPress={handleSave} color={COLORS.primary} />
-        <Button title="Cancelar" onPress={onClose} color={COLORS.closed} />
-      </View>
+    <View style={styles.modalContainer}>
+      <ScrollView contentContainerStyle={styles.modalContent}>
+        <Text style={styles.modalTitle}>Adicionar Dia Fechado</Text>
+        <Text style={styles.label}>Data (DD-MM-AAAA)</Text>
+        <TextInput
+          style={styles.input}
+          value={date}
+          onChangeText={setDate}
+          placeholder="Ex.: 28-04-2025"
+          placeholderTextColor={COLORS.closed}
+        />
+        <Text style={styles.label}>Motivo</Text>
+        <TextInput
+          style={styles.input}
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Digite o motivo"
+          placeholderTextColor={COLORS.closed}
+          multiline
+        />
+        <View style={styles.buttonContainer}>
+          <Button title="Salvar" onPress={handleSave} color={COLORS.primary} />
+          <Button title="Cancelar" onPress={onClose} color={COLORS.closed} />
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: COLORS.available,
-    padding: 20,
-    borderRadius: 10,
-    maxHeight: '80%',
+  modalContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: 15,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
   },
-  title: {
-    fontSize: 20,
+  modalContent: {
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 10,
+    color: COLORS.primary,
+    marginBottom: 15,
+    textAlign: 'center',
   },
   label: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: COLORS.text,
     marginTop: 10,
+    marginBottom: 5,
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.text,
-    borderRadius: 5,
-    padding: 10,
-    marginTop: 5,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
     color: COLORS.text,
+    backgroundColor: COLORS.available,
   },
   buttonContainer: {
     flexDirection: 'row',

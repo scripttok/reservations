@@ -5,6 +5,8 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { onValue, ref } from 'firebase/database';
@@ -19,14 +21,18 @@ import { COLORS } from '../constants/colors';
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState([]);
+  const [filteredHistory, setFilteredHistory] = useState([]);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Carregar histórico em tempo real
   useEffect(() => {
     const loadHistory = async () => {
       try {
+        setIsLoading(true);
         await ensureAuthenticated();
         const historyRef = ref(database, 'history');
         onValue(historyRef, (snapshot) => {
@@ -34,19 +40,31 @@ export default function HistoryScreen() {
           const historyList = data
             ? Object.keys(data).map((key) => ({
                 ...data[key],
-                key: data[key].id, // Usar id como key para unicidade
+                key: data[key].id,
               }))
             : [];
           console.log(`Histórico carregado: ${historyList.length} reservas`);
           setHistory(historyList);
+          setFilteredHistory(historyList);
+          setIsLoading(false);
         });
       } catch (error) {
         console.error('Erro ao carregar histórico:', error);
+        Alert.alert('Erro', 'Falha ao carregar histórico. Tente novamente.');
+        setIsLoading(false);
       }
     };
 
     loadHistory();
   }, []);
+
+  // Filtrar histórico por nome
+  useEffect(() => {
+    const filtered = history.filter((reservation) =>
+      reservation.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredHistory(filtered);
+  }, [searchQuery, history]);
 
   // Abrir modal de detalhes
   const handleShowDetails = (reservation) => {
@@ -63,11 +81,14 @@ export default function HistoryScreen() {
   // Confirmar exclusão
   const handleConfirmDelete = async () => {
     try {
+      setIsLoading(true);
       await deleteHistoryReservation(selectedReservation.id);
-      alert('Reserva excluída do histórico com sucesso!');
+      Alert.alert('Sucesso', 'Reserva excluída do histórico com sucesso!');
       setShowDeleteModal(false);
     } catch (error) {
-      alert('Erro ao excluir reserva: ' + error.message);
+      Alert.alert('Erro', 'Falha ao excluir reserva: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,14 +121,28 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      )}
       <Text style={styles.title}>Histórico de Reservas</Text>
-      {history.length === 0 ? (
+      <TextInput
+        style={styles.searchInput}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Buscar por nome do cliente"
+        placeholderTextColor={COLORS.closed}
+      />
+      {filteredHistory.length === 0 && !isLoading ? (
         <Text style={styles.emptyText}>
-          Nenhuma reserva concluída encontrada.
+          {searchQuery
+            ? 'Nenhum resultado encontrado.'
+            : 'Nenhuma reserva concluída encontrada.'}
         </Text>
       ) : (
         <FlatList
-          data={history}
+          data={filteredHistory}
           renderItem={renderHistoryItem}
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.list}
@@ -116,6 +151,8 @@ export default function HistoryScreen() {
       <Modal
         isVisible={showDetailsModal}
         onBackdropPress={() => setShowDetailsModal(false)}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
       >
         <DetailsModal
           details={selectedReservation}
@@ -125,6 +162,8 @@ export default function HistoryScreen() {
       <Modal
         isVisible={showDeleteModal}
         onBackdropPress={() => setShowDeleteModal(false)}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
       >
         <ConfirmationModal
           message="Tem certeza que deseja excluir esta reserva do histórico?"
@@ -145,8 +184,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 10,
+  },
+  searchInput: {
+    backgroundColor: COLORS.available,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
     color: COLORS.text,
-    marginBottom: 20,
+    marginBottom: 15,
   },
   emptyText: {
     fontSize: 16,
@@ -164,9 +213,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 3,
+    elevation: 5,
   },
   clientName: {
     fontSize: 18,
@@ -189,8 +238,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   button: {
-    padding: 10,
-    borderRadius: 5,
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
     flex: 1,
     marginHorizontal: 5,
@@ -202,8 +251,18 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.closed,
   },
   buttonText: {
-    color: '#ffffff',
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
 });

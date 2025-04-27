@@ -1,9 +1,8 @@
 export const COLORS = {
-  primary: '#007AFF',
-  secondary: '#5856D6',
-  available: '#FFFFFF',
-  occupied: '#34C759',
-  closed: '#FF3B30',
-  background: '#F2F2F7',
-  text: '#000000',
+  background: '#000000', // Preto
+  primary: '#FFC72C', // Amarelo
+  text: '#FFFFFF', // Branco
+  occupied: '#008000', // Verde
+  closed: '#DA291C', // vermelho
+  available: '#222222', // Cinza escuro
 };
