@@ -5,10 +5,19 @@ import {
   Alert,
   Button,
   ActivityIndicator,
+  FlatList,
+  Text,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import Modal from 'react-native-modal';
-import { format, parseISO, eachDayOfInterval } from 'date-fns';
+import { LocaleConfig } from 'react-native-calendars';
+import {
+  format,
+  parseISO,
+  eachDayOfInterval,
+  isSameDay,
+  addDays,
+} from 'date-fns';
 import {
   getReservations,
   getClosedDates,
@@ -28,6 +37,7 @@ export default function CreateReservationScreen() {
   const [showClosedDateModal, setShowClosedDateModal] = useState(false);
   const [reservationDetails, setReservationDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [expiringReservations, setExpiringReservations] = useState([]);
 
   // Carregar dados do Firebase
   useEffect(() => {
@@ -48,7 +58,7 @@ export default function CreateReservationScreen() {
           days.forEach((day) => {
             marked[day] = {
               selected: true,
-              selectedColor: COLORS.occupied,
+              selectedColor: res.isRecurrent ? COLORS.primary : COLORS.occupied,
               reservation: res,
             };
           });
@@ -63,6 +73,13 @@ export default function CreateReservationScreen() {
           };
         });
 
+        // Identificar reservas que expiram amanhã
+        const tomorrow = addDays(new Date(), 1);
+        const expiring = reservations.filter((res) =>
+          isSameDay(parseISO(res.endDate), tomorrow)
+        );
+        setExpiringReservations(expiring);
+
         setMarkedDates(marked);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -74,6 +91,51 @@ export default function CreateReservationScreen() {
 
     loadData();
   }, []);
+
+  LocaleConfig.locales['pt-BR'] = {
+    monthNames: [
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
+    ],
+    monthNamesShort: [
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez',
+    ],
+    dayNames: [
+      'Domingo',
+      'Segunda-feira',
+      'Terça-feira',
+      'Quarta-feira',
+      'Quinta-feira',
+      'Sexta-feira',
+      'Sábado',
+    ],
+    dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+    today: 'Hoje',
+  };
+
+  // Definir o locale padrão
+  LocaleConfig.defaultLocale = 'pt-BR';
 
   // Manipular clique no dia
   const handleDayPress = (day) => {
@@ -91,31 +153,50 @@ export default function CreateReservationScreen() {
   };
 
   // Salvar nova reserva
-  const handleSaveReservation = async (reservation) => {
+  // Salvar nova reserva
+  // Salvar nova reserva
+  const handleSaveReservation = async (reservations) => {
+    console.log('Iniciando handleSaveReservation com reservas:', reservations);
     try {
       setIsLoading(true);
-      await createReservation(reservation);
-      Alert.alert('Sucesso', 'Reserva criada com sucesso!');
+      console.log('Chamando createReservation com:', reservations);
+      const savedReservations = await createReservation(reservations);
+      console.log('Reservas salvas com sucesso:', savedReservations);
+      Alert.alert('Sucesso', 'Reserva(s) criada(s) com sucesso!');
       setShowFormModal(false);
 
       // Atualizar calendário
-      const days = eachDayOfInterval({
-        start: parseISO(reservation.startDate),
-        end: parseISO(reservation.endDate),
-      }).map((day) => format(day, 'yyyy-MM-dd'));
-
       const newMarked = { ...markedDates };
-      days.forEach((day) => {
-        newMarked[day] = {
-          selected: true,
-          selectedColor: COLORS.occupied,
-          reservation,
-        };
-      });
+      for (const reservation of reservations) {
+        console.log('Atualizando markedDates para reserva:', reservation);
+        const days = eachDayOfInterval({
+          start: parseISO(reservation.startDate),
+          end: parseISO(reservation.endDate),
+        }).map((day) => format(day, 'yyyy-MM-dd'));
+
+        days.forEach((day) => {
+          newMarked[day] = {
+            selected: true,
+            selectedColor: reservation.isRecurrent
+              ? COLORS.primary
+              : COLORS.occupied,
+            reservation,
+          };
+        });
+      }
+
+      // Atualizar expirações
+      const tomorrow = addDays(new Date(), 1);
+      const expiring = reservations.filter((res) =>
+        isSameDay(parseISO(res.endDate), tomorrow)
+      );
+      console.log('Reservas expirando amanhã:', expiring);
+      setExpiringReservations(expiring);
 
       setMarkedDates(newMarked);
     } catch (error) {
-      Alert.alert('Erro', error.message);
+      console.error('Erro em handleSaveReservation:', error);
+      Alert.alert('Erro', `Falha ao salvar reserva(s): ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -146,6 +227,16 @@ export default function CreateReservationScreen() {
     }
   };
 
+  // Renderizar item de expiração
+  const renderExpiringItem = ({ item }) => (
+    <View style={styles.expiringCard}>
+      <Text style={styles.expiringText}>
+        Reserva de {item.clientName} ({item.startDate} {item.startTime}-
+        {item.endTime}) expira amanhã!
+      </Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       {isLoading && (
@@ -170,7 +261,7 @@ export default function CreateReservationScreen() {
           selectedDayTextColor: COLORS.text,
           todayTextColor: COLORS.primary,
           dayTextColor: COLORS.text,
-          textDisabledColor: COLORS.available,
+          textDisabledColor: COLORS.closed,
           arrowColor: COLORS.primary,
           monthTextColor: COLORS.primary,
           textDayFontWeight: '400',
@@ -178,6 +269,17 @@ export default function CreateReservationScreen() {
           textDayHeaderFontWeight: '600',
         }}
       />
+      {expiringReservations.length > 0 && (
+        <View style={styles.expiringContainer}>
+          <Text style={styles.expiringTitle}>Reservas Expirando Amanhã</Text>
+          <FlatList
+            data={expiringReservations}
+            renderItem={renderExpiringItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.expiringList}
+          />
+        </View>
+      )}
       <Modal
         isVisible={showDetailsModal}
         onBackdropPress={() => setShowDetailsModal(false)}
@@ -231,5 +333,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  expiringContainer: {
+    marginTop: 15,
+  },
+  expiringTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 10,
+  },
+  expiringList: {
+    paddingBottom: 10,
+  },
+  expiringCard: {
+    backgroundColor: COLORS.available,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 5,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  expiringText: {
+    fontSize: 14,
+    color: COLORS.text,
   },
 });

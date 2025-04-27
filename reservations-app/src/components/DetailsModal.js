@@ -18,7 +18,8 @@ export default function DetailsModal({ details, onClose }) {
             <Text style={styles.value}>{reservation.clientName}</Text>
             <Text style={styles.label}>Período:</Text>
             <Text style={styles.value}>
-              {reservation.startDate} a {reservation.endDate}
+              {reservation.startDate} {reservation.startTime} a{' '}
+              {reservation.endDate} {reservation.endTime}
             </Text>
             <Text style={styles.label}>Valor Pago:</Text>
             <Text style={styles.value}>R$ {reservation.paidAmount}</Text>
@@ -26,6 +27,10 @@ export default function DetailsModal({ details, onClose }) {
             <Text style={styles.value}>R$ {reservation.remainingAmount}</Text>
             <Text style={styles.label}>Observação:</Text>
             <Text style={styles.value}>{reservation.notes || 'Nenhuma'}</Text>
+            <Text style={styles.label}>Recorrente:</Text>
+            <Text style={styles.value}>
+              {reservation.isRecurrent ? 'Sim' : 'Não'}
+            </Text>
           </>
         ) : (
           <>

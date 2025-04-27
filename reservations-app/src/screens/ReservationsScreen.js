@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   TextInput,
+  Animated,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { onValue, ref } from 'firebase/database';
@@ -14,17 +15,50 @@ import {
   database,
   ensureAuthenticated,
   checkAndMoveExpiredReservations,
+  createReservation,
 } from '../services/firebase';
 import DetailsModal from '../components/DetailsModal';
 import { COLORS } from '../constants/colors';
+import {
+  format,
+  parseISO,
+  isSameDay,
+  addDays,
+  addMonths,
+  getDay,
+  eachWeekOfInterval,
+  endOfMonth,
+} from 'date-fns';
 
 export default function ReservationsScreen() {
   const [reservations, setReservations] = useState([]);
-  const [filteredReservations, setFilteredReservations] = useState([]);
+  const [filteredGeneralReservations, setFilteredGeneralReservations] =
+    useState([]);
+  const [filteredRecurrentReservations, setFilteredRecurrentReservations] =
+    useState([]);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [blinkAnim] = useState(new Animated.Value(1));
+
+  // Animação de piscar
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, {
+          toValue: 0.4,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blinkAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [blinkAnim]);
 
   // Carregar reservas em tempo real
   useEffect(() => {
@@ -37,13 +71,18 @@ export default function ReservationsScreen() {
         onValue(reservationsRef, (snapshot) => {
           const data = snapshot.val();
           const reservationsList = data
-            ? Object.keys(data).map((key) => ({
-                ...data[key],
-                key: data[key].id,
+            ? Object.values(data).map((res) => ({
+                ...res,
+                key: res.id,
               }))
             : [];
           setReservations(reservationsList);
-          setFilteredReservations(reservationsList);
+          setFilteredGeneralReservations(
+            reservationsList.filter((res) => !res.isRecurrent)
+          );
+          setFilteredRecurrentReservations(
+            reservationsList.filter((res) => res.isRecurrent)
+          );
           setIsLoading(false);
         });
       } catch (error) {
@@ -58,10 +97,18 @@ export default function ReservationsScreen() {
 
   // Filtrar reservas por nome
   useEffect(() => {
-    const filtered = reservations.filter((reservation) =>
-      reservation.clientName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredReservations(filtered);
+    const filteredGeneral = reservations
+      .filter((reservation) => !reservation.isRecurrent)
+      .filter((reservation) =>
+        reservation.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    const filteredRecurrent = reservations
+      .filter((reservation) => reservation.isRecurrent)
+      .filter((reservation) =>
+        reservation.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    setFilteredGeneralReservations(filteredGeneral);
+    setFilteredRecurrentReservations(filteredRecurrent);
   }, [searchQuery, reservations]);
 
   // Abrir modal de detalhes
@@ -70,20 +117,74 @@ export default function ReservationsScreen() {
     setShowDetailsModal(true);
   };
 
+  // Renovar reserva recorrente
+  const handleRenew = async (reservation) => {
+    try {
+      setIsLoading(true);
+      const startParsed = parseISO(reservation.startDate);
+      const nextMonth = addMonths(startParsed, 1);
+      const monthEnd = endOfMonth(nextMonth);
+      const dayOfWeek = getDay(startParsed);
+      const recurrentDates = eachWeekOfInterval({
+        start: nextMonth,
+        end: monthEnd,
+      })
+        .filter((date) => getDay(date) === dayOfWeek)
+        .map((date) => format(date, 'yyyy-MM-dd'));
+
+      const newReservations = recurrentDates.map((date) => ({
+        ...reservation,
+        startDate: date,
+        endDate: date,
+        isRecurrent: true,
+        createdAt: new Date().toISOString(),
+      }));
+
+      await createReservation(newReservations);
+      Alert.alert('Sucesso', 'Reserva renovada para o próximo mês!');
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao renovar reserva: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Renderizar item da lista
-  const renderReservationItem = ({ item }) => (
-    <TouchableOpacity onPress={() => handleShowDetails(item)}>
-      <View style={styles.reservationCard}>
+  const renderReservationItem = ({ item }) => {
+    const isExpiring = isSameDay(
+      parseISO(item.endDate),
+      addDays(new Date(), 1)
+    );
+    return (
+      <Animated.View
+        style={[styles.reservationCard, isExpiring && { opacity: blinkAnim }]}
+      >
         <Text style={styles.clientName}>{item.clientName}</Text>
         <Text style={styles.dates}>
-          {item.startDate} a {item.endDate}
+          {item.startDate} {item.startTime}-{item.endTime}
         </Text>
         <Text style={styles.financial}>
           Pago: R$ {item.paidAmount} | Restante: R$ {item.remainingAmount}
         </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, styles.detailsButton]}
+            onPress={() => handleShowDetails(item)}
+          >
+            <Text style={styles.buttonText}>Detalhes</Text>
+          </TouchableOpacity>
+          {isExpiring && item.isRecurrent && (
+            <TouchableOpacity
+              style={[styles.button, styles.renewButton]}
+              onPress={() => handleRenew(item)}
+            >
+              <Text style={styles.buttonText}>Renovar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -98,22 +199,42 @@ export default function ReservationsScreen() {
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Buscar por nome do cliente"
-        placeholderTextColor={COLORS.text}
+        placeholderTextColor={COLORS.closed}
       />
-      {filteredReservations.length === 0 && !isLoading ? (
-        <Text style={styles.emptyText}>
-          {searchQuery
-            ? 'Nenhum resultado encontrado.'
-            : 'Nenhuma reserva em andamento encontrada.'}
-        </Text>
-      ) : (
-        <FlatList
-          data={filteredReservations}
-          renderItem={renderReservationItem}
-          keyExtractor={(item) => item.key}
-          contentContainerStyle={styles.list}
-        />
-      )}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Reservas Geral</Text>
+        {filteredGeneralReservations.length === 0 ? (
+          <Text style={styles.emptyText}>
+            {searchQuery
+              ? 'Nenhum resultado encontrado.'
+              : 'Nenhuma reserva geral encontrada.'}
+          </Text>
+        ) : (
+          <FlatList
+            data={filteredGeneralReservations}
+            renderItem={renderReservationItem}
+            keyExtractor={(item) => item.key}
+            contentContainerStyle={styles.list}
+          />
+        )}
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Reservas Recorrente</Text>
+        {filteredRecurrentReservations.length === 0 ? (
+          <Text style={styles.emptyText}>
+            {searchQuery
+              ? 'Nenhum resultado encontrado.'
+              : 'Nenhuma reserva recorrente encontrada.'}
+          </Text>
+        ) : (
+          <FlatList
+            data={filteredRecurrentReservations}
+            renderItem={renderReservationItem}
+            keyExtractor={(item) => item.key}
+            contentContainerStyle={styles.list}
+          />
+        )}
+      </View>
       <Modal
         isVisible={showDetailsModal}
         onBackdropPress={() => setShowDetailsModal(false)}
@@ -151,25 +272,39 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 15,
   },
-  emptyText: {
-    fontSize: 16,
-    color: COLORS.text,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  list: {
-    paddingBottom: 20,
-  },
-  reservationCard: {
+  card: {
     backgroundColor: COLORS.available,
-    padding: 15,
     borderRadius: 10,
-    marginBottom: 10,
+    padding: 15,
+    marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  list: {
+    paddingBottom: 10,
+  },
+  reservationCard: {
+    backgroundColor: COLORS.background,
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
   },
   clientName: {
     fontSize: 18,
@@ -185,6 +320,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     marginTop: 5,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  button: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  detailsButton: {
+    backgroundColor: COLORS.primary,
+  },
+  renewButton: {
+    backgroundColor: COLORS.occupied,
+  },
+  buttonText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   loadingContainer: {
     position: 'absolute',
