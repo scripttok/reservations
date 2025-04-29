@@ -24,6 +24,8 @@ import {
   isBefore,
   startOfDay,
   isValid,
+  parse,
+  isWithinInterval,
 } from 'date-fns';
 import uuid from 'react-native-uuid';
 
@@ -77,13 +79,27 @@ const isValidDateString = (dateStr) => {
   }
 };
 
-// Função para verificar se um dia está ocupado
-async function isDateOccupied(startDate, endDate) {
-  console.log('Verificando ocupação de datas:', { startDate, endDate });
+// Validar formato de horário
+const isValidTimeString = (timeStr) => {
+  return timeStr.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/);
+};
+
+// Função para verificar se um dia está ocupado (verifica horários)
+async function isDateOccupied(startDate, endDate, startTime, endTime) {
+  console.log('Verificando ocupação de datas e horários:', {
+    startDate,
+    endDate,
+    startTime,
+    endTime,
+  });
   try {
     if (!isValidDateString(startDate) || !isValidDateString(endDate)) {
       console.warn('Datas inválidas fornecidas:', { startDate, endDate });
       throw new Error('Datas inválidas fornecidas.');
+    }
+    if (!isValidTimeString(startTime) || !isValidTimeString(endTime)) {
+      console.warn('Horários inválidos fornecidos:', { startTime, endTime });
+      throw new Error('Horários inválidos fornecidos.');
     }
     await ensureAuthenticated();
     const reservationsRef = ref(database, 'reservations');
@@ -95,15 +111,22 @@ async function isDateOccupied(startDate, endDate) {
         end: parseISO(endDate),
       }).map((day) => format(day, 'yyyy-MM-dd'));
 
+      const newStartTime = parse(startTime, 'HH:mm', new Date());
+      const newEndTime = parse(endTime, 'HH:mm', new Date());
+
       for (const resId in reservations) {
         const res = reservations[resId];
         if (
           !res.startDate ||
           !res.endDate ||
+          !res.startTime ||
+          !res.endTime ||
           !isValidDateString(res.startDate) ||
-          !isValidDateString(res.endDate)
+          !isValidDateString(res.endDate) ||
+          !isValidTimeString(res.startTime) ||
+          !isValidTimeString(res.endTime)
         ) {
-          console.warn('Reserva com datas inválidas ignorada:', res);
+          console.warn('Reserva com dados inválidos ignorada:', res);
           continue;
         }
         try {
@@ -112,20 +135,38 @@ async function isDateOccupied(startDate, endDate) {
             end: parseISO(res.endDate),
           }).map((day) => format(day, 'yyyy-MM-dd'));
 
+          // Verificar se há interseção de dias
           if (targetDays.some((day) => resDays.includes(day))) {
-            console.log('Conflito de data detectado:', {
-              startDate,
-              endDate,
-              conflictingReservation: res,
-            });
-            return true;
+            // Verificar conflito de horário
+            const resStartTime = parse(res.startTime, 'HH:mm', new Date());
+            const resEndTime = parse(res.endTime, 'HH:mm', new Date());
+            const hasConflict =
+              isWithinInterval(newStartTime, {
+                start: resStartTime,
+                end: resEndTime,
+              }) ||
+              isWithinInterval(newEndTime, {
+                start: resStartTime,
+                end: resEndTime,
+              }) ||
+              (newStartTime <= resStartTime && newEndTime >= resEndTime);
+            if (hasConflict) {
+              console.log('Conflito de horário detectado:', {
+                startDate,
+                endDate,
+                startTime,
+                endTime,
+                conflictingReservation: res,
+              });
+              return true;
+            }
           }
         } catch (error) {
           console.error('Erro ao verificar reserva:', res, error);
         }
       }
     }
-    console.log('Nenhum conflito de data encontrado.');
+    console.log('Nenhum conflito de data ou horário encontrado.');
     return false;
   } catch (error) {
     console.error('Erro em isDateOccupied:', error);
@@ -133,7 +174,7 @@ async function isDateOccupied(startDate, endDate) {
   }
 }
 
-// Função para verificar conflitos de horário
+// Função para verificar conflitos de horário (mantida para compatibilidade)
 async function hasTimeConflict(startDate, startTime, endTime) {
   console.log('Verificando conflito de horário:', {
     startDate,
@@ -143,33 +184,58 @@ async function hasTimeConflict(startDate, startTime, endTime) {
   try {
     if (
       !isValidDateString(startDate) ||
-      !startTime.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
+      !isValidTimeString(startTime) ||
+      !isValidTimeString(endTime)
     ) {
-      console.warn('Data ou horário inválidos:', { startDate, startTime });
-      throw new Error('Data ou horário inválidos.');
+      console.warn('Data ou horários inválidos:', {
+        startDate,
+        startTime,
+        endTime,
+      });
+      throw new Error('Data ou horários inválidos.');
     }
     await ensureAuthenticated();
     const reservationsRef = ref(database, 'reservations');
     const snapshot = await get(reservationsRef);
     if (snapshot.exists()) {
       const reservations = snapshot.val();
+      const newStartTime = parse(startTime, 'HH:mm', new Date());
+      const newEndTime = parse(endTime, 'HH:mm', new Date());
       for (const resId in reservations) {
         const res = reservations[resId];
         if (
           !res.startDate ||
           !res.startTime ||
-          !isValidDateString(res.startDate)
+          !res.endTime ||
+          !isValidDateString(res.startDate) ||
+          !isValidTimeString(res.startTime) ||
+          !isValidTimeString(res.endTime)
         ) {
-          console.warn('Reserva com startDate ou startTime inválidos:', res);
+          console.warn('Reserva com dados inválidos ignorada:', res);
           continue;
         }
-        if (res.startDate === startDate && res.startTime === startTime) {
-          console.log('Conflito de horário detectado:', {
-            startDate,
-            startTime,
-            conflictingReservation: res,
-          });
-          return true;
+        if (res.startDate === startDate) {
+          const resStartTime = parse(res.startTime, 'HH:mm', new Date());
+          const resEndTime = parse(res.endTime, 'HH:mm', new Date());
+          const hasConflict =
+            isWithinInterval(newStartTime, {
+              start: resStartTime,
+              end: resEndTime,
+            }) ||
+            isWithinInterval(newEndTime, {
+              start: resStartTime,
+              end: resEndTime,
+            }) ||
+            (newStartTime <= resStartTime && newEndTime >= resEndTime);
+          if (hasConflict) {
+            console.log('Conflito de horário detectado:', {
+              startDate,
+              startTime,
+              endTime,
+              conflictingReservation: res,
+            });
+            return true;
+          }
         }
       }
     }
@@ -222,10 +288,7 @@ async function createReservation(reservations) {
         throw new Error('Datas inválidas na reserva.');
       }
 
-      if (
-        !startTime.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/) ||
-        !endTime.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)
-      ) {
+      if (!isValidTimeString(startTime) || !isValidTimeString(endTime)) {
         console.warn('Horários inválidos na reserva:', { startTime, endTime });
         throw new Error('Horários inválidos na reserva.');
       }
@@ -238,17 +301,16 @@ async function createReservation(reservations) {
         throw new Error('Valores financeiros inválidos.');
       }
 
-      // Verificar conflitos de horário
-      const timeConflict = await hasTimeConflict(startDate, startTime, endTime);
-      if (timeConflict) {
-        throw new Error(`Conflito de horário em ${startDate} às ${startTime}.`);
-      }
-
-      // Verificar se o dia está ocupado
-      const isOccupied = await isDateOccupied(startDate, endDate);
+      // Verificar conflitos de data e horário
+      const isOccupied = await isDateOccupied(
+        startDate,
+        endDate,
+        startTime,
+        endTime
+      );
       if (isOccupied) {
         throw new Error(
-          `Um ou mais dias já estão ocupados: ${startDate} a ${endDate}.`
+          `Conflito de horário em ${startDate} a ${endDate}: ${startTime}-${endTime}.`
         );
       }
 
