@@ -40,6 +40,8 @@ export default function ReservationsScreen() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showGeneralList, setShowGeneralList] = useState(false);
+  const [showRecurrentList, setShowRecurrentList] = useState(false);
   const [blinkAnim] = useState(new Animated.Value(1));
 
   // Animação de piscar
@@ -190,7 +192,7 @@ export default function ReservationsScreen() {
     <View style={styles.container}>
       {isLoading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={COLORS.primary || '#000'} />
         </View>
       )}
       <Text style={styles.title}>Reservas em Andamento</Text>
@@ -199,42 +201,56 @@ export default function ReservationsScreen() {
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Buscar por nome do cliente"
-        placeholderTextColor={COLORS.closed}
+        placeholderTextColor={COLORS.closed || '#999'}
       />
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => setShowGeneralList(!showGeneralList)}
+      >
         <Text style={styles.cardTitle}>Reservas Geral</Text>
-        {filteredGeneralReservations.length === 0 ? (
-          <Text style={styles.emptyText}>
-            {searchQuery
-              ? 'Nenhum resultado encontrado.'
-              : 'Nenhuma reserva geral encontrada.'}
-          </Text>
-        ) : (
-          <FlatList
-            data={filteredGeneralReservations}
-            renderItem={renderReservationItem}
-            keyExtractor={(item) => item.key}
-            contentContainerStyle={styles.list}
-          />
-        )}
-      </View>
-      <View style={styles.card}>
+      </TouchableOpacity>
+      {showGeneralList && (
+        <View style={styles.listContainer}>
+          {filteredGeneralReservations.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {searchQuery
+                ? 'Nenhum resultado encontrado.'
+                : 'Nenhuma reserva geral encontrada.'}
+            </Text>
+          ) : (
+            <FlatList
+              data={filteredGeneralReservations}
+              renderItem={renderReservationItem}
+              keyExtractor={(item) => item.key}
+              contentContainerStyle={styles.list}
+            />
+          )}
+        </View>
+      )}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => setShowRecurrentList(!showRecurrentList)}
+      >
         <Text style={styles.cardTitle}>Reservas Recorrente</Text>
-        {filteredRecurrentReservations.length === 0 ? (
-          <Text style={styles.emptyText}>
-            {searchQuery
-              ? 'Nenhum resultado encontrado.'
-              : 'Nenhuma reserva recorrente encontrada.'}
-          </Text>
-        ) : (
-          <FlatList
-            data={filteredRecurrentReservations}
-            renderItem={renderReservationItem}
-            keyExtractor={(item) => item.key}
-            contentContainerStyle={styles.list}
-          />
-        )}
-      </View>
+      </TouchableOpacity>
+      {showRecurrentList && (
+        <View style={styles.listContainer}>
+          {filteredRecurrentReservations.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {searchQuery
+                ? 'Nenhum resultado encontrado.'
+                : 'Nenhuma reserva recorrente encontrada.'}
+            </Text>
+          ) : (
+            <FlatList
+              data={filteredRecurrentReservations}
+              renderItem={renderReservationItem}
+              keyExtractor={(item) => item.key}
+              contentContainerStyle={styles.list}
+            />
+          )}
+        </View>
+      )}
       <Modal
         isVisible={showDetailsModal}
         onBackdropPress={() => setShowDetailsModal(false)}
@@ -253,27 +269,27 @@ export default function ReservationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background || '#fff',
     padding: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.primary || '#000',
     marginBottom: 10,
   },
   searchInput: {
-    backgroundColor: COLORS.available,
+    backgroundColor: COLORS.available || '#fff',
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.primary || '#000',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text || '#000',
     marginBottom: 15,
   },
   card: {
-    backgroundColor: COLORS.available,
+    backgroundColor: COLORS.available || '#fff',
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
@@ -286,12 +302,18 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.primary || '#000',
     marginBottom: 10,
+  },
+  listContainer: {
+    backgroundColor: COLORS.available || '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
   },
   emptyText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text || '#000',
     textAlign: 'center',
     marginTop: 10,
   },
@@ -299,26 +321,26 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   reservationCard: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background || '#fff',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.primary || '#000',
   },
   clientName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text || '#000',
   },
   dates: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text || '#000',
     marginTop: 5,
   },
   financial: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text || '#000',
     marginTop: 5,
   },
   buttonContainer: {
@@ -334,13 +356,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   detailsButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary || '#000',
   },
   renewButton: {
-    backgroundColor: COLORS.occupied,
+    backgroundColor: COLORS.occupied || '#000',
   },
   buttonText: {
-    color: COLORS.text,
+    color: COLORS.text || '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
