@@ -11,6 +11,8 @@ import {
 import { Calendar } from 'react-native-calendars';
 import Modal from 'react-native-modal';
 import { LocaleConfig } from 'react-native-calendars';
+import AvailableTimesModal from '../components/AvailableTimesModal';
+import ClosedDateModal from '../components/ClosedDateModal';
 import {
   format,
   parseISO,
@@ -24,32 +26,36 @@ import {
   createReservation,
   addClosedDate,
 } from '../services/firebase';
-import DetailsModal from '../components/DetailsModal';
-import ReservationFormModal from '../components/ReservationFormModal';
-import ClosedDateModal from '../components/ClosedDateModal';
 import { COLORS } from '../constants/colors';
 
 export default function CreateReservationScreen() {
   const [markedDates, setMarkedDates] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showFormModal, setShowFormModal] = useState(false);
+  const [showTimesModal, setShowTimesModal] = useState(false);
   const [showClosedDateModal, setShowClosedDateModal] = useState(false);
-  const [reservationDetails, setReservationDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [expiringReservations, setExpiringReservations] = useState([]);
 
   // Carregar dados do Firebase
   useEffect(() => {
+    console.log('Verificando importações: parseISO existe?', !!parseISO);
     const loadData = async () => {
+      console.log('Iniciando loadData');
       try {
         setIsLoading(true);
+        console.log('Carregando reservas...');
         const reservations = await getReservations();
+        console.log('Reservas carregadas:', reservations);
+        console.log('Carregando dias fechados...');
         const closedDates = await getClosedDates();
+        console.log('Dias fechados carregados:', closedDates);
+
         const marked = {};
+        console.log('Inicializando marked:', marked);
 
         // Marcar dias ocupados
         reservations.forEach((res) => {
+          console.log('Processando reserva:', res);
           const days = eachDayOfInterval({
             start: parseISO(res.startDate),
             end: parseISO(res.endDate),
@@ -66,6 +72,7 @@ export default function CreateReservationScreen() {
 
         // Marcar dias fechados
         Object.keys(closedDates).forEach((date) => {
+          console.log('Marcando dia fechado:', date);
           marked[date] = {
             selected: true,
             selectedColor: COLORS.closed,
@@ -75,17 +82,22 @@ export default function CreateReservationScreen() {
 
         // Identificar reservas que expiram amanhã
         const tomorrow = addDays(new Date(), 1);
+        console.log('Verificando expirações para amanhã:', tomorrow);
         const expiring = reservations.filter((res) =>
           isSameDay(parseISO(res.endDate), tomorrow)
         );
+        console.log('Reservas expirando amanhã:', expiring);
         setExpiringReservations(expiring);
 
+        console.log('marked antes de setMarkedDates:', marked);
         setMarkedDates(marked);
+        console.log('markedDates inicializado:', marked);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
         Alert.alert('Erro', 'Falha ao carregar dados. Tente novamente.');
       } finally {
         setIsLoading(false);
+        console.log('loadData concluído');
       }
     };
 
@@ -134,27 +146,19 @@ export default function CreateReservationScreen() {
     today: 'Hoje',
   };
 
-  // Definir o locale padrão
   LocaleConfig.defaultLocale = 'pt-BR';
 
-  // Manipular clique no dia
   const handleDayPress = (day) => {
     const date = day.dateString;
-    setSelectedDate(date);
-
-    if (markedDates[date]) {
-      // Dia ocupado ou fechado: exibir detalhes
-      setReservationDetails(markedDates[date]);
-      setShowDetailsModal(true);
-    } else {
-      // Dia disponível: abrir formulário
-      setShowFormModal(true);
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      console.log('Data inválida selecionada:', date);
+      return;
     }
+    setSelectedDate(date);
+    setShowTimesModal(true);
+    console.log('Dia selecionado:', date);
   };
 
-  // Salvar nova reserva
-  // Salvar nova reserva
-  // Salvar nova reserva
   const handleSaveReservation = async (reservations) => {
     console.log('Iniciando handleSaveReservation com reservas:', reservations);
     try {
@@ -163,10 +167,10 @@ export default function CreateReservationScreen() {
       const savedReservations = await createReservation(reservations);
       console.log('Reservas salvas com sucesso:', savedReservations);
       Alert.alert('Sucesso', 'Reserva(s) criada(s) com sucesso!');
-      setShowFormModal(false);
+      setShowTimesModal(false);
 
-      // Atualizar calendário
       const newMarked = { ...markedDates };
+      console.log('newMarked inicializado:', newMarked);
       for (const reservation of reservations) {
         console.log('Atualizando markedDates para reserva:', reservation);
         const days = eachDayOfInterval({
@@ -185,7 +189,6 @@ export default function CreateReservationScreen() {
         });
       }
 
-      // Atualizar expirações
       const tomorrow = addDays(new Date(), 1);
       const expiring = reservations.filter((res) =>
         isSameDay(parseISO(res.endDate), tomorrow)
@@ -193,7 +196,9 @@ export default function CreateReservationScreen() {
       console.log('Reservas expirando amanhã:', expiring);
       setExpiringReservations(expiring);
 
+      console.log('newMarked antes de setMarkedDates:', newMarked);
       setMarkedDates(newMarked);
+      console.log('markedDates atualizado:', newMarked);
     } catch (error) {
       console.error('Erro em handleSaveReservation:', error);
       Alert.alert('Erro', `Falha ao salvar reserva(s): ${error.message}`);
@@ -202,7 +207,6 @@ export default function CreateReservationScreen() {
     }
   };
 
-  // Salvar dia fechado
   const handleSaveClosedDate = async (date, reason) => {
     try {
       setIsLoading(true);
@@ -210,7 +214,6 @@ export default function CreateReservationScreen() {
       Alert.alert('Sucesso', 'Dia fechado adicionado!');
       setShowClosedDateModal(false);
 
-      // Atualizar calendário
       const newMarked = {
         ...markedDates,
         [date]: {
@@ -220,6 +223,7 @@ export default function CreateReservationScreen() {
         },
       };
       setMarkedDates(newMarked);
+      console.log('markedDates atualizado:', newMarked);
     } catch (error) {
       Alert.alert('Erro', error.message);
     } finally {
@@ -227,7 +231,6 @@ export default function CreateReservationScreen() {
     }
   };
 
-  // Renderizar item de expiração
   const renderExpiringItem = ({ item }) => (
     <View style={styles.expiringCard}>
       <Text style={styles.expiringText}>
@@ -281,26 +284,15 @@ export default function CreateReservationScreen() {
         </View>
       )}
       <Modal
-        isVisible={showDetailsModal}
-        onBackdropPress={() => setShowDetailsModal(false)}
+        isVisible={showTimesModal}
+        onBackdropPress={() => setShowTimesModal(false)}
         animationIn="fadeIn"
         animationOut="fadeOut"
       >
-        <DetailsModal
-          details={reservationDetails}
-          onClose={() => setShowDetailsModal(false)}
-        />
-      </Modal>
-      <Modal
-        isVisible={showFormModal}
-        onBackdropPress={() => setShowFormModal(false)}
-        animationIn="fadeIn"
-        animationOut="fadeOut"
-      >
-        <ReservationFormModal
+        <AvailableTimesModal
           selectedDate={selectedDate}
           onSave={handleSaveReservation}
-          onClose={() => setShowFormModal(false)}
+          onClose={() => setShowTimesModal(false)}
         />
       </Modal>
       <Modal
