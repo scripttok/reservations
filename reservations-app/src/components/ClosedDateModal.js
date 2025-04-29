@@ -1,96 +1,136 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  Button,
+  TouchableOpacity,
   StyleSheet,
-  ScrollView,
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 
-export default function ClosedDateModal({ onSave, onClose }) {
-  const [date, setDate] = useState('');
-  const [reason, setReason] = useState('');
+const ClosedDateModal = ({ selectedDate, reason, onSave, onClose }) => {
+  const [inputReason, setInputReason] = useState(reason || '');
 
   const handleSave = () => {
-    if (!date || !reason) {
-      alert('Por favor, preencha a data e o motivo.');
-      return;
+    if (selectedDate && inputReason.trim()) {
+      onSave(selectedDate, inputReason.trim());
+    } else {
+      alert('Por favor, forneça um motivo para o fechamento.');
     }
-    onSave(date, reason);
   };
 
   return (
-    <View style={styles.modalContainer}>
-      <ScrollView contentContainerStyle={styles.modalContent}>
-        <Text style={styles.modalTitle}>Adicionar Dia Fechado</Text>
-        <Text style={styles.label}>Data (DD-MM-AAAA)</Text>
-        <TextInput
-          style={styles.input}
-          value={date}
-          onChangeText={setDate}
-          placeholder="Ex.: 28-04-2025"
-          placeholderTextColor={COLORS.closed}
-        />
-        <Text style={styles.label}>Motivo</Text>
-        <TextInput
-          style={styles.input}
-          value={reason}
-          onChangeText={setReason}
-          placeholder="Digite o motivo"
-          placeholderTextColor={COLORS.closed}
-          multiline
-        />
-        <View style={styles.buttonContainer}>
-          <Button title="Salvar" onPress={handleSave} color={COLORS.primary} />
-          <Button title="Cancelar" onPress={onClose} color={COLORS.closed} />
-        </View>
-      </ScrollView>
+    <View style={styles.container}>
+      <Text style={styles.title}>
+        {reason ? 'Dia Fechado' : 'Adicionar Dia Fechado'}
+      </Text>
+      {reason ? (
+        <>
+          <Text style={styles.message}>
+            O dia {selectedDate} está fechado pelo seguinte motivo:
+          </Text>
+          <Text style={styles.reason}>{reason}</Text>
+        </>
+      ) : (
+        <>
+          <Text style={styles.message}>Motivo do fechamento:</Text>
+          <TextInput
+            style={styles.input}
+            value={inputReason}
+            onChangeText={setInputReason}
+            placeholder="Ex.: Limpeza no espaço"
+            placeholderTextColor={COLORS.text || '#999'}
+          />
+        </>
+      )}
+      <View style={styles.buttonContainer}>
+        {reason ? (
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.buttonText}>Fechar</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.buttonText}>Salvar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.buttonText}>Cancelar</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    backgroundColor: COLORS.background,
-    borderRadius: 15,
-    margin: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  modalContent: {
+  container: {
+    backgroundColor: COLORS.background || '#fff',
     padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
   },
-  modalTitle: {
-    fontSize: 22,
+  title: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: 15,
+    color: COLORS.primary || '#000',
+    marginBottom: 10,
+  },
+  message: {
+    fontSize: 16,
+    color: COLORS.text || '#000',
+    marginBottom: 10,
     textAlign: 'center',
   },
-  label: {
+  reason: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: 10,
-    marginBottom: 5,
+    fontWeight: 'bold',
+    color: COLORS.error || '#ff0000',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   input: {
+    width: '100%',
     borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: COLORS.text,
-    backgroundColor: COLORS.available,
+    borderColor: COLORS.primary || '#000',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+    color: COLORS.text || '#000',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    width: '100%',
+  },
+  saveButton: {
+    backgroundColor: COLORS.primary || '#000',
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginRight: 5,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: COLORS.error || '#ff0000',
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginLeft: 5,
+    alignItems: 'center',
+  },
+  closeButton: {
+    backgroundColor: COLORS.primary || '#000',
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
+
+export default ClosedDateModal;

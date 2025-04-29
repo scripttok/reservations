@@ -35,6 +35,7 @@ export default function CreateReservationScreen() {
   const [showClosedDateModal, setShowClosedDateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [expiringReservations, setExpiringReservations] = useState([]);
+  const [closedDateReason, setClosedDateReason] = useState('');
 
   // Carregar dados do Firebase
   useEffect(() => {
@@ -155,8 +156,17 @@ export default function CreateReservationScreen() {
       return;
     }
     setSelectedDate(date);
-    setShowTimesModal(true);
-    console.log('Dia selecionado:', date);
+    if (markedDates[date]?.reason) {
+      console.log('Dia fechado detectado:', {
+        date,
+        reason: markedDates[date].reason,
+      });
+      setClosedDateReason(markedDates[date].reason);
+      setShowClosedDateModal(true);
+    } else {
+      setShowTimesModal(true);
+      console.log('Dia selecionado:', date);
+    }
   };
 
   const handleSaveReservation = async (reservations) => {
@@ -244,29 +254,29 @@ export default function CreateReservationScreen() {
     <View style={styles.container}>
       {isLoading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={COLORS.primary || '#000'} />
         </View>
       )}
       <Button
         title="Adicionar Dia Fechado"
         onPress={() => setShowClosedDateModal(true)}
-        color={COLORS.primary}
+        color={COLORS.primary || '#000'}
       />
       <Calendar
         markedDates={markedDates}
         onDayPress={handleDayPress}
         locale="pt-BR"
         theme={{
-          backgroundColor: COLORS.background,
-          calendarBackground: COLORS.available,
-          textSectionTitleColor: COLORS.text,
-          selectedDayBackgroundColor: COLORS.primary,
-          selectedDayTextColor: COLORS.text,
-          todayTextColor: COLORS.primary,
-          dayTextColor: COLORS.text,
-          textDisabledColor: COLORS.closed,
-          arrowColor: COLORS.primary,
-          monthTextColor: COLORS.primary,
+          backgroundColor: COLORS.background || '#fff',
+          calendarBackground: COLORS.available || '#fff',
+          textSectionTitleColor: COLORS.text || '#000',
+          selectedDayBackgroundColor: COLORS.primary || '#000',
+          selectedDayTextColor: COLORS.text || '#000',
+          todayTextColor: COLORS.primary || '#000',
+          dayTextColor: COLORS.text || '#000',
+          textDisabledColor: COLORS.closed || '#d3d3d3',
+          arrowColor: COLORS.primary || '#000',
+          monthTextColor: COLORS.primary || '#000',
           textDayFontWeight: '400',
           textMonthFontWeight: 'bold',
           textDayHeaderFontWeight: '600',
@@ -302,6 +312,8 @@ export default function CreateReservationScreen() {
         animationOut="fadeOut"
       >
         <ClosedDateModal
+          selectedDate={selectedDate}
+          reason={closedDateReason}
           onSave={handleSaveClosedDate}
           onClose={() => setShowClosedDateModal(false)}
         />
@@ -313,7 +325,7 @@ export default function CreateReservationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background || '#fff',
     padding: 20,
   },
   loadingContainer: {
@@ -332,22 +344,22 @@ const styles = StyleSheet.create({
   expiringTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.primary || '#000',
     marginBottom: 10,
   },
   expiringList: {
     paddingBottom: 10,
   },
   expiringCard: {
-    backgroundColor: COLORS.available,
+    backgroundColor: COLORS.available || '#fff',
     padding: 10,
     borderRadius: 8,
     marginBottom: 5,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.primary || '#000',
   },
   expiringText: {
     fontSize: 14,
-    color: COLORS.text,
+    color: COLORS.text || '#000',
   },
 });
