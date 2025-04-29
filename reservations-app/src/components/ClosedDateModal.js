@@ -8,7 +8,13 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 
-const ClosedDateModal = ({ selectedDate, reason, onSave, onClose }) => {
+const ClosedDateModal = ({
+  selectedDate,
+  reason,
+  onSave,
+  onRemove,
+  onClose,
+}) => {
   const [inputReason, setInputReason] = useState(reason || '');
 
   const handleSave = () => {
@@ -16,6 +22,12 @@ const ClosedDateModal = ({ selectedDate, reason, onSave, onClose }) => {
       onSave(selectedDate, inputReason.trim());
     } else {
       alert('Por favor, forneça um motivo para o fechamento.');
+    }
+  };
+
+  const handleRemove = () => {
+    if (selectedDate) {
+      onRemove(selectedDate);
     }
   };
 
@@ -45,9 +57,17 @@ const ClosedDateModal = ({ selectedDate, reason, onSave, onClose }) => {
       )}
       <View style={styles.buttonContainer}>
         {reason ? (
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.buttonText}>Fechar</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={handleRemove}
+            >
+              <Text style={styles.buttonText}>Remover Dia Fechado</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.buttonText}>Fechar</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <>
             <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
@@ -124,6 +144,15 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     flex: 1,
+    marginLeft: 5,
+    alignItems: 'center',
+  },
+  removeButton: {
+    backgroundColor: COLORS.error || '#ff0000',
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginRight: 5,
     alignItems: 'center',
   },
   buttonText: {

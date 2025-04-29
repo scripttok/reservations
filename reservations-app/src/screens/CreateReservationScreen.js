@@ -25,6 +25,7 @@ import {
   getClosedDates,
   createReservation,
   addClosedDate,
+  removeClosedDate,
 } from '../services/firebase';
 import { COLORS } from '../constants/colors';
 
@@ -241,6 +242,24 @@ export default function CreateReservationScreen() {
     }
   };
 
+  const handleRemoveClosedDate = async (date) => {
+    try {
+      setIsLoading(true);
+      await removeClosedDate(date);
+      Alert.alert('Sucesso', 'Dia fechado removido!');
+      setShowClosedDateModal(false);
+
+      const newMarked = { ...markedDates };
+      delete newMarked[date];
+      setMarkedDates(newMarked);
+      console.log('markedDates atualizado:', newMarked);
+    } catch (error) {
+      Alert.alert('Erro', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderExpiringItem = ({ item }) => (
     <View style={styles.expiringCard}>
       <Text style={styles.expiringText}>
@@ -315,6 +334,7 @@ export default function CreateReservationScreen() {
           selectedDate={selectedDate}
           reason={closedDateReason}
           onSave={handleSaveClosedDate}
+          onRemove={handleRemoveClosedDate}
           onClose={() => setShowClosedDateModal(false)}
         />
       </Modal>

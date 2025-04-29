@@ -458,6 +458,20 @@ async function addClosedDate(date, reason) {
   }
 }
 
+// Remover um dia fechado
+async function removeClosedDate(date) {
+  console.log('Removendo dia fechado:', date);
+  try {
+    await ensureAuthenticated();
+    const closedDateRef = ref(database, `closedDates/${date}`);
+    await remove(closedDateRef);
+    console.log(`Dia fechado removido: ${date}`);
+  } catch (error) {
+    console.error('Erro em removeClosedDate:', error);
+    throw error;
+  }
+}
+
 // Listar dias fechados
 async function getClosedDates() {
   console.log('Recuperando dias fechados...');
@@ -567,6 +581,7 @@ export {
   moveToHistory,
   getHistory,
   addClosedDate,
+  removeClosedDate,
   getClosedDates,
   isDateOccupied,
   checkAndMoveExpiredReservations,
